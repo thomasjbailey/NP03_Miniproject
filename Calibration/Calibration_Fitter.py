@@ -12,14 +12,6 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import uncertainties as u
 
-#normalised gaussian function
-def gaussian(x, mu, sig):
-    return (1/np.sqrt(2*np.pi*(sig**2))) * np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
-
-#model the peak as a gaussian on a constant background
-def peak_function(x, center, width, peak_count, background):
-    return background + peak_count*gaussian(x, center, width)
-
 #fit a peak to a region of data with width fit_width around the peak bin
 def peak_fit(data, peak, fit_width):
     fit_bins = data.loc[(data['BinNumber']>(peak-fit_width/2))].loc[data['BinNumber']<(peak+fit_width/2)]
