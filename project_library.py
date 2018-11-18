@@ -61,5 +61,4 @@ def peak_function(x, center, width, peak_count, background):
 
 #gaussian with constant background - probability density for likelihood fit
 def peak_function2(x, center, width, signal, fit_width):
-    #return decay*(1-signal)*np.exp(-decay*x) + signal*gaussian(x, center, width)
     return (1-signal)/fit_width + signal*gaussian(x, center, width)
