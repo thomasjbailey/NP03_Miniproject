@@ -65,7 +65,7 @@ a_list = []
 b_list = []
 time_list = []
 
-for file in glob.iglob('C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_Miniproject/Data/*Eu_calibration.h5'):
+for file in glob.iglob('C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_Miniproject/Data/Experimental/*Eu_calibration.h5'):
     print("Calibrating form file: {}".format(file))
     a, b, time = Calibration_Fitter(file)
     data, metadata = h5load(file)
