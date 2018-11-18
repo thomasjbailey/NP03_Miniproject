@@ -76,16 +76,33 @@ for file in glob.iglob('C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_Mi
     time -= 2018110611145 #remove offset from not being in year 0
     time_list.append(time)
 
-print(a_list)
-print(b_list)
-print(time_list)
+#save calibrations to a file
+out_file = open("Calibrations.csv", "w")
+out_file.write("Time Stamp, a, b\n")
+for i in range(len(a_list)):
+    out_file.write(str(time_list[i]+2018110611145)+', '+str(a_list[i])+', '+str(b_list[i])+'\n')
+out_file.close()
+
 mean_a = u.ufloat(np.mean([i.n for i in a_list]), np.std([i.n for i in a_list]))
 mean_b = u.ufloat(np.mean([i.n for i in b_list]), np.std([i.n for i in b_list]))
 print(mean_a)
 print(mean_b)
-plt.errorbar(time_list, [i.n for i in a_list], [i.s for i in a_list], fmt='x', linestyle='')
-plt.plot([0,700000],[mean_a.n, mean_a.n])
-plt.show()
-plt.errorbar(time_list, [i.n for i in b_list], [i.s for i in b_list], fmt='x', linestyle='')
-plt.plot([0,700000],[mean_b.n, mean_b.n])
-plt.show()
+
+#plot the gradient of the fit against time
+plt.errorbar(time_list, [i.n for i in a_list], [i.s for i in a_list], fmt='x', color='black', linestyle='')
+plt.plot([0,700000],[mean_a.n, mean_a.n], 'r')
+plt.plot([0,700000],[mean_a.n+mean_a.s, mean_a.n+mean_a.s], linestyle='--', color='red', alpha=0.5)
+plt.plot([0,700000],[mean_a.n-mean_a.s, mean_a.n-mean_a.s], linestyle='--', color='red', alpha=0.5)
+plt.xlabel("Time (s)")
+plt.ylabel("Gradient of Calibration (KeV/bin)")
+plt.savefig('a_fit.pdf')
+plt.close()
+
+#plot the gradient of the intercept of the fit against time
+plt.errorbar(time_list, [i.n for i in b_list], [i.s for i in b_list], fmt='x', color='black', linestyle='')
+plt.plot([0,700000],[mean_b.n, mean_b.n], 'r')
+plt.plot([0,700000],[mean_b.n+mean_b.s, mean_b.n+mean_b.s], linestyle='--', color='red', alpha=0.5)
+plt.plot([0,700000],[mean_b.n-mean_b.s, mean_b.n-mean_b.s], linestyle='--', color='red', alpha=0.5)
+plt.xlabel("Time (s)")
+plt.ylabel("Intercept of Calibration (KeV)")
+plt.savefig('b_fit.pdf')
