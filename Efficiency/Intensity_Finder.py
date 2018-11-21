@@ -35,6 +35,7 @@ def unbinned_exp_LLH(data, starting_param, param_limit):
 
 #function to perform a fit to the specified peak and return its size
 def peak_size_finder(peak, data, fit_width):
+    print('Fitting to Peak at Energy: {} KeV'.format(peak))
     data = list(filter(lambda x: x >= peak - fit_width/2, data))
     data = list(filter(lambda x: x <= peak + fit_width/2, data))
     number_counts = len(data)
@@ -49,14 +50,19 @@ def peak_size_finder(peak, data, fit_width):
     x_pts = np.linspace(peak-20, peak+20, 100)
     plt.plot(x_pts, number_counts*peak_function2(x_pts, *params), color = "black")
     plt.hist(data, color = "lightgrey", bins = fit_width)
-    plt.show()
-    return u.ufloat(params[2]*number_counts,errs[2]*number_counts)
+    plt.ylabel('Counts')
+    plt.xlabel('Energy [KeV]')
+    plt.savefig('Intensity_plots/'+str(peak)+'.pdf')
+    plt.close()
+    counts_in_peak = u.ufloat(params[2]*number_counts,errs[2]*number_counts)
+    print(counts_in_peak)
+    return counts_in_peak
 
 #get values of counts in each peak for Thorium
 data_file = open("Thorium_data.txt", 'rb')
 print('Loading Thorium Data from file')
 Thorium_data = pickle.load(data_file)
-fit_width = 10
+fit_width = 8
 Th_peaks = [99.5, 105.3, 115.2, 129.1, 154.2, 209.4, 238.6, 270.3, 278, 300.1, 328, 338.4, 409.4, 463, 583.1, 727, 794.8, 860.4, 911.1]
 
 #plt.hist(Thorium_data, 2000, log=True)
@@ -82,9 +88,9 @@ Eu_peaks = [121.78, 244.7, 344.28, 411.12, 443.96, 778.9, 867.37, 964.08, 1005.3
 # plt.show()
 
 print('Finding Peak Sizes')
-counts_in_peak_Eu = Parallel(n_jobs=-1)(delayed(peak_size_finder)(peak, Europium_data, fit_width) for peak in Eu_peaks)
+counts_in_peak_Eu = Parallel(n_jobs=1)(delayed(peak_size_finder)(peak, Europium_data, fit_width) for peak in Eu_peaks)
 
-print(counts_in_peak_Eu)
+#print(counts_in_peak_Eu)
 
 #save peak values
 with open('Europium_Intensity.txt', 'wb') as fp:

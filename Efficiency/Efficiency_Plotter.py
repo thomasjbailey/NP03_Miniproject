@@ -10,6 +10,8 @@ from project_library import *
 import matplotlib.pyplot as plt
 import uncertainties as u
 import pickle
+from scipy.optimize import curve_fit
+import glob
 
 with open('Thorium_Intensity.txt', 'rb') as fp:
     counts_in_peak_Th = pickle.load(fp)
@@ -44,11 +46,11 @@ for i in range(len(Th_efficiency)):
 	Th_efficiency_n.append(Th_efficiency[i].n)
 	Th_efficiency_s.append(Th_efficiency[i].s)
 
-plt.errorbar(Th_peaks, Th_efficiency_n, Th_efficiency_s, linestyle='', fmt='x', label='Th')
-
 
 with open('Europium_Intensity.txt', 'rb') as fp:
     counts_in_peak_Eu = pickle.load(fp)
+
+print(len(counts_in_peak_Eu))
 
 Eu_peaks = [121.78, 244.7, 344.28, 411.12, 443.96, 778.9, 867.37, 964.08, 1005.3, 1085.9, 1112.1, 1299.1, 1408]
 
@@ -76,6 +78,41 @@ for i in range(len(Eu_efficiency)):
 	Eu_efficiency_n.append(Eu_efficiency[i].n)
 	Eu_efficiency_s.append(Eu_efficiency[i].s)
 
-plt.errorbar(Eu_peaks, Eu_efficiency_n, Eu_efficiency_s, linestyle='', fmt='x', label='Eu')
+
+#fit a joint fit to the two datasets
+x = np.hstack((Th_peaks, Eu_peaks))
+y = np.hstack((Th_efficiency_n, Eu_efficiency_n))
+y_err = np.hstack((Th_efficiency_s, Eu_efficiency_s))
+
+print(x)
+print(len(x))
+print(len(y))
+print(len(y_err))
+
+def fit(x, a, b, c, d, e, g, f):
+	th = x[0:19]
+	eu = x[19:]
+	th = a*np.exp(b*th) + c*np.exp(-(th**2)/d) + e*np.exp(-(th*g))
+	eu = f*(a*np.exp(b*eu) + c*np.exp(-(eu**2)/d) + e*np.exp(-(eu*g)))
+	return np.hstack([th, eu])
+
+def fit_plotter(x, a, b, c, d, e, g, f):
+	return a*np.exp(b*x) + c*np.exp(-(x**2)/d) + e*np.exp(-(x*g))
+
+popt, pcov = curve_fit(fit, x, y, p0=[70, -0.001, 400, 35000, 200, 0.01, 16], sigma=y_err)
+print(popt)
+plt.errorbar(Eu_peaks, Eu_efficiency_n/(fit_plotter(0, *popt)*popt[-1]), Eu_efficiency_s/(fit_plotter(0, *popt)*popt[-1]), linestyle='None', marker='x', elinewidth=1, color='blue', label='Europium Data')
+plt.errorbar(Th_peaks, Th_efficiency_n/(fit_plotter(0, *popt)), Th_efficiency_s/(fit_plotter(0, *popt)), linestyle='None', marker='x', elinewidth=1, color='green', label='Thorium Data')
+#plt.errorbar(data_th['Energy'].values[0:2], nominal_efficiency_th[0:2]/(fit_plotter(0, *popt)), uncertainty_efficiency_th[0:2]/(fit_plotter(0, *popt)), linestyle='None', marker='x', elinewidth=1, color='green', alpha=0.5)
+
+plt.plot(np.linspace(0,1500), fit_plotter(np.linspace(0, 1500), *popt)/(fit_plotter(0, *popt)), color='black', label='Experimental Fit')
+
+sim_data = read_simulated_data("../Data/Simulated/AllEnergies_10mm.txt")
+plt.plot(sim_data['Energy']*1000, np.divide(sim_data['Number_Full_energy_deposited'].values, sim_data['Input_Photons'].values), 'x', label='Simulated', alpha=0.2)
+
+
+
+plt.xlabel('Energy [KeV]')
+plt.ylabel('Efficiency')
 plt.legend()
 plt.show()
