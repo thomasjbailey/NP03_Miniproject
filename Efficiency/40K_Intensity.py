@@ -1,6 +1,6 @@
-#a script to calculate the number of counts in each peak
+#a script to calculate the number of counts in the 40-K peak
 #Author: Thomas Bailey
-#Date Created: 20181118
+#Date Created: 20181126
 
 import numpy as np
 import pandas as pd
@@ -59,39 +59,19 @@ def peak_size_finder(peak, data, fit_width):
     return counts_in_peak
 
 #get values of counts in each peak for Thorium
-data_file = open("Thorium_data.txt", 'rb')
-print('Loading Thorium Data from file')
-Thorium_data = pickle.load(data_file)
+data_file = open("Potassium_data.txt", 'rb')
+print('Loading Potassium Data from file')
+Potassium_data = pickle.load(data_file)
 fit_width = 8
-Th_peaks = [99.5, 105.3, 115.2, 129.1, 154.2, 209.4, 238.6, 270.3, 278, 300.1, 328, 338.4, 409.4, 463, 583.1, 727, 794.8, 860.4, 911.1]
+K_peak = 1460.8
 
-#plt.hist(Thorium_data, 2000, log=True)
-#plt.show()
-
-print('Finding Peak Sizes')
-#counts_in_peak_Th = Parallel(n_jobs=-1)(delayed(peak_size_finder)(peak, Thorium_data, fit_width) for peak in Th_peaks)
-#print(counts_in_peak_Th)
-
-#save peak values
-#with open('Thorium_Intensity.txt', 'wb') as fp:
-#    pickle.dump(counts_in_peak_Th, fp)
-
-
-#get values of counts in each peak for Europium
-data_file = open("Europium_data.txt", 'rb')
-print('Loading Europium Data from file')
-Europium_data = pickle.load(data_file)
-fit_width = 15
-Eu_peaks = [121.78, 244.7, 344.28, 411.12, 443.96, 778.9, 867.37, 964.08, 1005.3, 1085.9, 1112.1, 1299.1, 1408]
-
-# plt.hist(Europium_data, 2000, log=True)
-# plt.show()
+plt.hist(Potassium_data, 2000, log=True)
+plt.show()
 
 print('Finding Peak Sizes')
-counts_in_peak_Eu = Parallel(n_jobs=1)(delayed(peak_size_finder)(peak, Europium_data, fit_width) for peak in Eu_peaks)
-
-#print(counts_in_peak_Eu)
+counts_in_peak_K = peak_size_finder(K_peak, Potassium_data, fit_width)
+print(counts_in_peak_K)
 
 #save peak values
-with open('Europium_Intensity.txt', 'wb') as fp:
-    pickle.dump(counts_in_peak_Eu, fp)
+with open('Potassium_Intensity.txt', 'wb') as fp:
+   pickle.dump(counts_in_peak_K, fp)

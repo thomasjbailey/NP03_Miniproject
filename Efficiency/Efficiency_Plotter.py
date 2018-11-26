@@ -13,6 +13,8 @@ import pickle
 from scipy.optimize import curve_fit
 import glob
 import scipy.interpolate as inter
+import scipy.constants as c
+import uncertainties.umath as umath
 
 #import the fitted peak counts from file
 #a list with fitted number of counts in each peak
@@ -57,8 +59,6 @@ for i in range(len(Th_efficiency)):
 #open peak intensity data from fits for Europium
 with open('Europium_Intensity.txt', 'rb') as fp:
     counts_in_peak_Eu = pickle.load(fp)
-
-print(len(counts_in_peak_Eu))
 
 #known energies and probabilities of each peak
 Eu_peaks = [121.78, 244.7, 344.28, 411.12, 443.96, 778.9, 867.37, 964.08, 1005.3, 1085.9, 1112.1, 1299.1, 1408]
@@ -110,13 +110,6 @@ def fit_plotter(x, a, b, c, d, e, g, f):
 popt, pcov = curve_fit(fit, x, y, p0=[70, -0.001, 400, 35000, 200, 0.01, 16], sigma=y_err)
 print(popt)
 
-#plot the efficiency data
-plt.errorbar(Eu_peaks, Eu_efficiency_n/(fit_plotter(0, *popt)*popt[-1]), Eu_efficiency_s/(fit_plotter(0, *popt)*popt[-1]), linestyle='None', marker='x',markersize=7, elinewidth=1, color='blue', label='Europium Data')
-plt.errorbar(Th_peaks, Th_efficiency_n/(fit_plotter(0, *popt)), Th_efficiency_s/(fit_plotter(0, *popt)), linestyle='None', marker='o', markerfacecolor='none', elinewidth=1, color='green', label='Thorium Data')
-#plt.errorbar(data_th['Energy'].values[0:2], nominal_efficiency_th[0:2]/(fit_plotter(0, *popt)), uncertainty_efficiency_th[0:2]/(fit_plotter(0, *popt)), linestyle='None', marker='x', elinewidth=1, color='green', alpha=0.5)
-
-#plt the fit line
-plt.plot(np.linspace(0,1500), fit_plotter(np.linspace(0, 1500), *popt)/(fit_plotter(0, *popt)), color='black', label='Experimental Fit')
 
 
 #read the simulated efficiency for an active thickness of 10mm
@@ -125,18 +118,142 @@ sim_data = read_simulated_data("../Data/Simulated/AllEnergies_10mm.txt")
 
 #remove entries at energies where there are no inputted photons and the entry at 0.22 MeV that causes a bad spline fit
 #energies converted from MeV to KeV
-x = (sim_data['Energy'].loc[sim_data['Energy']>=0.03].loc[sim_data['Energy']!=0.22].values)*1000
-#y = efficiency (total that deposited full energy/total inputted at that energy)
-y = np.divide(sim_data['Number_Full_energy_deposited'].loc[sim_data['Energy']>=0.03].loc[sim_data['Energy']!=0.22].values, sim_data['Input_Photons'].loc[sim_data['Energy']>=0.03].loc[sim_data['Energy']!=0.22].values)
+x_sim = (sim_data['Energy'].loc[sim_data['Energy']>=0.03].loc[sim_data['Energy']!=0.22].values)*1000
+#y_sim = efficiency (total that deposited full energy/total inputted at that energy)
+y_sim = np.divide(sim_data['Number_Full_energy_deposited'].loc[sim_data['Energy']>=0.03].loc[sim_data['Energy']!=0.22].values, sim_data['Input_Photons'].loc[sim_data['Energy']>=0.03].loc[sim_data['Energy']!=0.22].values)
 
 #create a weight for the spline to ensure that the leveling off at 100% is fitted without overfitting elsewhere
 w = np.arange(1, 297)
 w = 1/w
 
 #fit and plot a spline for the simulated data
-s1 = inter.UnivariateSpline (x, y, s=0.00001, w=w)
-#plt.plot(x, y, 'x')
-plt.plot (x, s1(x), '--r', label='Simulated Efficiency')
+s1 = inter.UnivariateSpline (x_sim, y_sim, s=0.00001, w=w)
+
+
+#open peak intensity data for K-40
+with open('Potassium_Intensity.txt', 'rb') as fp:
+    K_peak = pickle.load(fp)
+K_time = u.ufloat(6551, 1.4) #duration of the KCl run duration
+
+#calculate the expected activity of the KCl source
+Mass = u.ufloat(353.93, 0.005)
+Molar_Mass = u.ufloat(74.548, 0.0005)
+K40_abundance = u.ufloat(0.000117, 0.000001)
+half_life = u.ufloat(1.248, 0.003)*(10**9)*365*24*60*60
+gamma_decay_mode = u.ufloat(10.72, 0.11) * 0.01 #fraction of decays with a gamma emmission
+
+moles_K40 = (Mass/Molar_Mass)*K40_abundance
+number_K40 = c.N_A * moles_K40
+decay_constant = np.log(2)/half_life
+activity = decay_constant * number_K40
+gamma_activity = activity * gamma_decay_mode
+print("The expected activity for the low Na Salt is {}".format(gamma_activity))
+
+#function to extract efficiency with uncertainties
+def fit_value1(x, a, b, c, d, e, g, f):
+	return a*umath.exp(b*x) + c*umath.exp(-(x**2)/d) + e*umath.exp(-(x*g))
+
+#calculate expected signal from efficiency curve if all photons passed through detector
+#efficeiency from fit to experimental data
+Exp_eff_1460 = fit_value1(1460.82, *[u.ufloat(i[0], i[1]) for i in zip(popt, np.sqrt(np.diag(pcov)))])
+#expected count rate
+count_rate_1 = gamma_activity * Exp_eff_1460
+
+
+#to check systematic errors in the empirical model used try some other fit functions
+
+#function to fit the two data sets with a multiplicative constant between their efficiencies
+#use a model of two gaussians and an expontential to fit the efficiency data
+def fit2(x, a, b, c, d, e, g, f):
+	th = x[0:19]
+	eu = x[19:]
+	th = a*np.exp(b*th) + c*np.exp(-(th**2)/d) + e*np.exp(-(th**2)/g)
+	eu = f*(a*np.exp(b*eu) + c*np.exp(-(eu**2)/d) + e*np.exp(-(eu**2)/g))
+	return np.hstack([th, eu])
+
+#function to plot the final fit
+def fit_value2(th, a, b, c, d, e, g, f):
+	return a*umath.exp(b*th) + c*umath.exp(-(th**2)/d) + e*umath.exp(-(th**2)/g)
+
+#perform a fit to the data
+popt2, pcov2 = curve_fit(fit2, x, y, p0=[35, -0.001, 400, 25000, 58, 200000, 20], sigma=y_err)
+
+#calculate expected signal from efficiency curve if all photons passed through detector
+#efficeiency from fit to experimental data
+Exp_eff_1460 = fit_value2(1460.82, *[u.ufloat(i[0], i[1]) for i in zip(popt2, np.sqrt(np.diag(pcov2)))])
+#expected count rate
+count_rate_2 = gamma_activity * Exp_eff_1460
+
+#fit with 3 gaussians
+def fit3(x, a, b, c, d, e, g, f):
+	th = x[0:19]
+	eu = x[19:]
+	th = a*np.exp(-(th**2)/b) + c*np.exp(-(th**2)/d) + e*np.exp(-(th**2)/g)
+	eu = f*(a*np.exp(-(eu**2)/b) + c*np.exp(-(eu**2)/d) + e*np.exp(-(eu**2)/g))
+	return np.hstack([th, eu])
+
+#function to plot the final fit
+def fit_value3(th, a, b, c, d, e, g, f):
+	return a*umath.exp(-(th**2)/b) + c*umath.exp(-(th**2)/d) + e*umath.exp(-(th**2)/g)
+
+#perform a fit to the data
+popt3, pcov3 = curve_fit(fit3, x, y, p0=[20, 30000000, 400, 25000, 58, 200000, 20], sigma=y_err)
+
+#calculate expected signal from efficiency curve if all photons passed through detector
+#efficeiency from fit to experimental data
+Exp_eff_1460 = fit_value3(1460.82, *[u.ufloat(i[0], i[1]) for i in zip(popt3, np.sqrt(np.diag(pcov3)))])
+#expected count rate
+count_rate_3 = gamma_activity * Exp_eff_1460
+
+
+#fit with 1 gaussian and 1 exponential
+def fit4(x, a, b, c, d, f):
+	th = x[0:19]
+	eu = x[19:]
+	th = a*np.exp(-th*b) + c*np.exp(-(th**2)/d)
+	eu = f*(a*np.exp(-eu*b) + c*np.exp(-(eu**2)/d))
+	return np.hstack([th, eu])
+
+#function to plot the final fit
+def fit_value4(th, a, b, c, d, f):
+	return a*umath.exp(-th*b) + c*umath.exp(-(th**2)/d)
+
+#perform a fit to the data
+popt4, pcov4 = curve_fit(fit4, x, y, p0=[60, 0.001, 400, 35000, 20], sigma=y_err)
+
+#calculate expected signal from efficiency curve if all photons passed through detector
+#efficeiency from fit to experimental data
+Exp_eff_1460 = fit_value4(1460.82, *[u.ufloat(i[0], i[1]) for i in zip(popt4, np.sqrt(np.diag(pcov4)))])
+#expected count rate
+count_rate_4 = gamma_activity * Exp_eff_1460
+
+
+#using uncertainties from the fits and combining
+#average_count = (count_rate_1 + count_rate_2 + count_rate_3 + count_rate_4)/4
+
+#instead estimate uncertainty using standard deviation in fit measurements
+count_rate = np.array([count_rate_1.n, count_rate_2.n, count_rate_3.n, count_rate_4.n])
+average_count = u.ufloat(np.mean(count_rate), np.std(count_rate))
+
+#experimental count rate
+exp_count_rate = K_peak / K_time
+
+#the overall detector efficiency
+efficiency_coeff = exp_count_rate / average_count
+print(efficiency_coeff)
+
+
+#plot the efficiency data
+plt.errorbar(Eu_peaks, np.array(Eu_efficiency_n)*efficiency_coeff.n/popt[-1], np.array(Eu_efficiency_s)*efficiency_coeff.n/popt[-1], linestyle='None', marker='x',markersize=7, elinewidth=1, color='blue', label='Europium Data')
+plt.errorbar(Th_peaks, np.array(Th_efficiency_n)*efficiency_coeff.n, np.array(Th_efficiency_s)*efficiency_coeff.n, linestyle='None', marker='o', markerfacecolor='none', elinewidth=1, color='green', label='Thorium Data')
+#plt.errorbar(data_th['Energy'].values[0:2], nominal_efficiency_th[0:2]/(fit_plotter(0, *popt)), uncertainty_efficiency_th[0:2]/(fit_plotter(0, *popt)), linestyle='None', marker='x', elinewidth=1, color='green', alpha=0.5)
+
+#plt the fit line
+plt.plot(np.linspace(0,1500), fit_plotter(np.linspace(0, 1500), *popt)*efficiency_coeff.n, color='black', label='Experimental Fit')
+
+
+
+plt.plot (x_sim, s1(x_sim)*efficiency_coeff.n*fit_plotter(0, *popt), '--r', label='Simulated Efficiency')
 #plt.plot(sim_data['Energy']*1000, np.divide(sim_data['Number_Full_energy_deposited'].values, sim_data['Input_Photons'].values), 'x', label='Simulated', alpha=0.2)
 
 plt.xlim(0,1500)
@@ -146,3 +263,5 @@ plt.ylabel('Efficiency')
 plt.legend()
 plt.savefig('Efficiency.pdf')
 plt.show()
+
+print(fit_plotter(1460.8, *popt))
