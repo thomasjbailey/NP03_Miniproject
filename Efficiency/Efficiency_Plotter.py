@@ -12,12 +12,17 @@ import uncertainties as u
 import pickle
 from scipy.optimize import curve_fit
 import glob
+import scipy.interpolate as inter
 
+#import the fitted peak counts from file
+#a list with fitted number of counts in each peak
 with open('Thorium_Intensity.txt', 'rb') as fp:
     counts_in_peak_Th = pickle.load(fp)
 
+#known energies of each thorium gamma peak
 Th_peaks = [99.5, 105.3, 115.2, 129.1, 154.2, 209.4, 238.6, 270.3, 278, 300.1, 328, 338.4, 409.4, 463, 583.1, 727, 794.8, 860.4, 911.1]
 
+#known probability of each thorium gamma peak
 known_probabilities_Th = np.array([u.ufloat(1.30, 0.07),
                         u.ufloat(4.8, 0.3),
                         u.ufloat(0.71, 0.05),
@@ -38,8 +43,10 @@ known_probabilities_Th = np.array([u.ufloat(1.30, 0.07),
                         u.ufloat(4.2, 0.2),
                         u.ufloat(25.4, 1.3)])
 
+#calculate efficiency
 Th_efficiency = np.divide(np.array(counts_in_peak_Th),known_probabilities_Th)
 
+#convert from numpy arrays with ufloats to lists with normal floats
 Th_efficiency_n = []
 Th_efficiency_s = []
 for i in range(len(Th_efficiency)):
@@ -47,13 +54,14 @@ for i in range(len(Th_efficiency)):
 	Th_efficiency_s.append(Th_efficiency[i].s)
 
 
+#open peak intensity data from fits for Europium
 with open('Europium_Intensity.txt', 'rb') as fp:
     counts_in_peak_Eu = pickle.load(fp)
 
 print(len(counts_in_peak_Eu))
 
+#known energies and probabilities of each peak
 Eu_peaks = [121.78, 244.7, 344.28, 411.12, 443.96, 778.9, 867.37, 964.08, 1005.3, 1085.9, 1112.1, 1299.1, 1408]
-
 known_probabilities_Eu = np.array([
                         u.ufloat(28.58, 0.09),
                         u.ufloat(7.580, 0.030),
@@ -72,6 +80,7 @@ known_probabilities_Eu = np.array([
 
 Eu_efficiency = np.divide(np.array(counts_in_peak_Eu),known_probabilities_Eu)
 
+#convert from numpy array of ufloats to list of floats
 Eu_efficiency_n = []
 Eu_efficiency_s = []
 for i in range(len(Eu_efficiency)):
@@ -84,11 +93,8 @@ x = np.hstack((Th_peaks, Eu_peaks))
 y = np.hstack((Th_efficiency_n, Eu_efficiency_n))
 y_err = np.hstack((Th_efficiency_s, Eu_efficiency_s))
 
-print(x)
-print(len(x))
-print(len(y))
-print(len(y_err))
-
+#function to fit the two data sets with a multiplicative constant between their efficiencies
+#use a model of two exponentials and a gaussian to fit the efficiency data
 def fit(x, a, b, c, d, e, g, f):
 	th = x[0:19]
 	eu = x[19:]
@@ -96,23 +102,47 @@ def fit(x, a, b, c, d, e, g, f):
 	eu = f*(a*np.exp(b*eu) + c*np.exp(-(eu**2)/d) + e*np.exp(-(eu*g)))
 	return np.hstack([th, eu])
 
+#function to plot the final fit
 def fit_plotter(x, a, b, c, d, e, g, f):
 	return a*np.exp(b*x) + c*np.exp(-(x**2)/d) + e*np.exp(-(x*g))
 
+#perform a fit to the data
 popt, pcov = curve_fit(fit, x, y, p0=[70, -0.001, 400, 35000, 200, 0.01, 16], sigma=y_err)
 print(popt)
-plt.errorbar(Eu_peaks, Eu_efficiency_n/(fit_plotter(0, *popt)*popt[-1]), Eu_efficiency_s/(fit_plotter(0, *popt)*popt[-1]), linestyle='None', marker='x', elinewidth=1, color='blue', label='Europium Data')
-plt.errorbar(Th_peaks, Th_efficiency_n/(fit_plotter(0, *popt)), Th_efficiency_s/(fit_plotter(0, *popt)), linestyle='None', marker='x', elinewidth=1, color='green', label='Thorium Data')
+
+#plot the efficiency data
+plt.errorbar(Eu_peaks, Eu_efficiency_n/(fit_plotter(0, *popt)*popt[-1]), Eu_efficiency_s/(fit_plotter(0, *popt)*popt[-1]), linestyle='None', marker='x',markersize=7, elinewidth=1, color='blue', label='Europium Data')
+plt.errorbar(Th_peaks, Th_efficiency_n/(fit_plotter(0, *popt)), Th_efficiency_s/(fit_plotter(0, *popt)), linestyle='None', marker='o', markerfacecolor='none', elinewidth=1, color='green', label='Thorium Data')
 #plt.errorbar(data_th['Energy'].values[0:2], nominal_efficiency_th[0:2]/(fit_plotter(0, *popt)), uncertainty_efficiency_th[0:2]/(fit_plotter(0, *popt)), linestyle='None', marker='x', elinewidth=1, color='green', alpha=0.5)
 
+#plt the fit line
 plt.plot(np.linspace(0,1500), fit_plotter(np.linspace(0, 1500), *popt)/(fit_plotter(0, *popt)), color='black', label='Experimental Fit')
 
+
+#read the simulated efficiency for an active thickness of 10mm
+#a panda dataframe with headings 'Energy', 'Input_Photons', 'Number_Full_energy_deposited', 'Total_counts'
 sim_data = read_simulated_data("../Data/Simulated/AllEnergies_10mm.txt")
-plt.plot(sim_data['Energy']*1000, np.divide(sim_data['Number_Full_energy_deposited'].values, sim_data['Input_Photons'].values), 'x', label='Simulated', alpha=0.2)
 
+#remove entries at energies where there are no inputted photons and the entry at 0.22 MeV that causes a bad spline fit
+#energies converted from MeV to KeV
+x = (sim_data['Energy'].loc[sim_data['Energy']>=0.03].loc[sim_data['Energy']!=0.22].values)*1000
+#y = efficiency (total that deposited full energy/total inputted at that energy)
+y = np.divide(sim_data['Number_Full_energy_deposited'].loc[sim_data['Energy']>=0.03].loc[sim_data['Energy']!=0.22].values, sim_data['Input_Photons'].loc[sim_data['Energy']>=0.03].loc[sim_data['Energy']!=0.22].values)
 
+#create a weight for the spline to ensure that the leveling off at 100% is fitted without overfitting elsewhere
+w = np.arange(1, 297)
+w = 1/w
+
+#fit and plot a spline for the simulated data
+s1 = inter.UnivariateSpline (x, y, s=0.00001, w=w)
+#plt.plot(x, y, 'x')
+plt.plot (x, s1(x), '--r', label='Simulated Efficiency')
+#plt.plot(sim_data['Energy']*1000, np.divide(sim_data['Number_Full_energy_deposited'].values, sim_data['Input_Photons'].values), 'x', label='Simulated', alpha=0.2)
+
+plt.xlim(0,1500)
 
 plt.xlabel('Energy [KeV]')
 plt.ylabel('Efficiency')
 plt.legend()
+plt.savefig('Efficiency.pdf')
 plt.show()
