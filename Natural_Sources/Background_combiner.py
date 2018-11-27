@@ -63,6 +63,6 @@ for file in glob.iglob("../Data/Experimental/Background*.h5"):
 plt.hist(calibrated_data, 1000, log=True)
 plt.show()
 
-#save combined unbinned uranium data
+#save combined unbinned background data
 with open('Background_data.txt', 'wb') as fp:
     pickle.dump(calibrated_data, fp)
