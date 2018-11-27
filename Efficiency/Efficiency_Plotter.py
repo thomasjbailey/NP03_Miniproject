@@ -155,9 +155,10 @@ def fit_value1(x, a, b, c, d, e, g, f):
 
 #calculate expected signal from efficiency curve if all photons passed through detector
 #efficeiency from fit to experimental data
-Exp_eff_1460 = fit_value1(1460.82, *[u.ufloat(i[0], i[1]) for i in zip(popt, np.sqrt(np.diag(pcov)))])
+Exp_eff_1460 = fit_value1(1460.82, *u.correlated_values(popt, pcov))
 #expected count rate
 count_rate_1 = gamma_activity * Exp_eff_1460
+print(Exp_eff_1460)
 
 
 #to check systematic errors in the empirical model used try some other fit functions
@@ -180,9 +181,10 @@ popt2, pcov2 = curve_fit(fit2, x, y, p0=[35, -0.001, 400, 25000, 58, 200000, 20]
 
 #calculate expected signal from efficiency curve if all photons passed through detector
 #efficeiency from fit to experimental data
-Exp_eff_1460 = fit_value2(1460.82, *[u.ufloat(i[0], i[1]) for i in zip(popt2, np.sqrt(np.diag(pcov2)))])
+Exp_eff_1460 = fit_value2(1460.82, *u.correlated_values(popt2, pcov2))
 #expected count rate
 count_rate_2 = gamma_activity * Exp_eff_1460
+print(Exp_eff_1460)
 
 #fit with 3 gaussians
 def fit3(x, a, b, c, d, e, g, f):
@@ -201,9 +203,10 @@ popt3, pcov3 = curve_fit(fit3, x, y, p0=[20, 30000000, 400, 25000, 58, 200000, 2
 
 #calculate expected signal from efficiency curve if all photons passed through detector
 #efficeiency from fit to experimental data
-Exp_eff_1460 = fit_value3(1460.82, *[u.ufloat(i[0], i[1]) for i in zip(popt3, np.sqrt(np.diag(pcov3)))])
+Exp_eff_1460 = fit_value3(1460.82, *u.correlated_values(popt3, pcov3))
 #expected count rate
 count_rate_3 = gamma_activity * Exp_eff_1460
+print(Exp_eff_1460)
 
 
 #fit with 1 gaussian and 1 exponential
@@ -223,17 +226,21 @@ popt4, pcov4 = curve_fit(fit4, x, y, p0=[60, 0.001, 400, 35000, 20], sigma=y_err
 
 #calculate expected signal from efficiency curve if all photons passed through detector
 #efficeiency from fit to experimental data
-Exp_eff_1460 = fit_value4(1460.82, *[u.ufloat(i[0], i[1]) for i in zip(popt4, np.sqrt(np.diag(pcov4)))])
+Exp_eff_1460 = fit_value4(1460.82, *u.correlated_values(popt4, pcov4))
 #expected count rate
 count_rate_4 = gamma_activity * Exp_eff_1460
+print(Exp_eff_1460)
 
 
 #using uncertainties from the fits and combining
-#average_count = (count_rate_1 + count_rate_2 + count_rate_3 + count_rate_4)/4
+#remove fit 2 from average as it has a strangely high uncertainty (although the fit looks good)
+average_count = (count_rate_1 + count_rate_3 + count_rate_4)/3
+
 
 #instead estimate uncertainty using standard deviation in fit measurements
-count_rate = np.array([count_rate_1.n, count_rate_2.n, count_rate_3.n, count_rate_4.n])
-average_count = u.ufloat(np.mean(count_rate), np.std(count_rate))
+#count_rate = np.array([count_rate_1.n, count_rate_2.n, count_rate_3.n, count_rate_4.n])
+#average_count = u.ufloat(np.mean(count_rate), np.std(count_rate))
+
 
 #experimental count rate
 exp_count_rate = K_peak / K_time
@@ -252,7 +259,6 @@ plt.errorbar(Th_peaks, np.array(Th_efficiency_n)*efficiency_coeff.n, np.array(Th
 plt.plot(np.linspace(0,1500), fit_plotter(np.linspace(0, 1500), *popt)*efficiency_coeff.n, color='black', label='Experimental Fit')
 
 
-
 plt.plot (x_sim, s1(x_sim)*efficiency_coeff.n*fit_plotter(0, *popt), '--r', label='Simulated Efficiency')
 #plt.plot(sim_data['Energy']*1000, np.divide(sim_data['Number_Full_energy_deposited'].values, sim_data['Input_Photons'].values), 'x', label='Simulated', alpha=0.2)
 
@@ -263,5 +269,3 @@ plt.ylabel('Efficiency')
 plt.legend()
 plt.savefig('Efficiency.pdf')
 plt.show()
-
-print(fit_plotter(1460.8, *popt))
