@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import random
 import scipy.stats
+import uncertainties as u
+import uncertainties.umath as umath
 
 #functions to write and open data in the HDF5 format with metadata
 #source https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe/29130146#29130146
@@ -62,3 +64,22 @@ def peak_function(x, center, width, peak_count, background):
 #gaussian with constant background - probability density for likelihood fit
 def peak_function2(x, center, width, signal, fit_width):
     return (1-signal)/fit_width + signal*gaussian(x, center, width)
+
+
+#functions for efficiency calculations
+
+def fit_value1(x, a, b, c, d, e, g, f):
+	return a*umath.exp(b*x) + c*umath.exp(-(x**2)/d) + e*umath.exp(-(x*g))
+
+def fit_value2(th, a, b, c, d, e, g, f):
+	return a*umath.exp(b*th) + c*umath.exp(-(th**2)/d) + e*umath.exp(-(th**2)/g)
+
+def fit_value3(th, a, b, c, d, e, g, f):
+	return a*umath.exp(-(th**2)/b) + c*umath.exp(-(th**2)/d) + e*umath.exp(-(th**2)/g)
+
+def fit_value4(th, a, b, c, d, f):
+	return a*umath.exp(-th*b) + c*umath.exp(-(th**2)/d)
+
+#calculate efficiency value using 3 different models and average
+def Efficiency(Energy, coeffs):
+    return (fit_value1(Energy, *coeffs[0]) + fit_value3(Energy, *coeffs[1]) + fit_value4(Energy, *coeffs[2]))/3 * coeffs[3]

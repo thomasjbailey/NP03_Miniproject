@@ -269,3 +269,6 @@ plt.ylabel('Efficiency')
 plt.legend()
 plt.savefig('Efficiency.pdf')
 plt.show()
+
+with open('EfficiencyParamaters.txt', 'wb') as fp:
+    pickle.dump((u.correlated_values(popt, pcov), u.correlated_values(popt3, pcov3), u.correlated_values(popt4, pcov4), efficiency_coeff), fp)
