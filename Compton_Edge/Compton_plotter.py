@@ -19,7 +19,7 @@ data, metadata = h5load("../Data/Experimental/137-Cs.h5")
 
 data['Energy'] = data['BinNumber'].apply(Calibrate, args=tuple(metadata['Calibration']))
 
-sim_data = read_simulated_data("../Data/Simulated/Compton_14mm.txt")
+sim_data = read_simulated_data("../Data/Simulated/Compton_10mm.txt")
 #convert from MeV to KeV
 sim_data['Energy'] = sim_data['Energy']*1000
 #remove peak from photons not detected
@@ -27,7 +27,10 @@ sim_data['Total_counts'].iloc[0] = 0
 
 #rescale simlulated data to match experimental
 #number calculated from number of counts in main peak
-sim_data['Total_counts'] = sim_data['Total_counts']*0.924
+sim_peak = sim_data['Total_counts'].loc[sim_data['Energy']>642].loc[sim_data['Energy']<656].sum()
+exp_peak = data['Counts'].loc[data['Energy']>657].loc[data['Energy']<665].sum()
+
+sim_data['Total_counts'] = sim_data['Total_counts']*(exp_peak/sim_peak)
 
 # plt.plot(data['Energy'], data['Counts'], label='Energy')
 # plt.legend()
@@ -36,7 +39,7 @@ sim_data['Total_counts'] = sim_data['Total_counts']*0.924
 plt.hist(unbin(data), bins=200, range=(0, 700), alpha=0.5, label='Experimental')
 plt.hist(unbin_sim(sim_data), bins=200, range=(0, 700), alpha=0.5, label='Simulated')
 plt.ylabel("Counts")
-plt.xlabel("Energy (KeV)")
+plt.xlabel("Energy [KeV]")
 plt.legend()
 plt.savefig('Compton_Edge.pdf')
 plt.show()
