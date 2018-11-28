@@ -10,13 +10,14 @@ sys.path += ["C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_Miniproject"
 from project_library import *
 
 #iterator of files to read
-files = glob.iglob('C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_New/*.Spe')
+#files = glob.iglob('C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_New/*.Spe')
 #files = ['C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_New\\2long_background.Spe']
+files = glob.iglob('C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_New/3moderatorIndium/*.Spe')
 
 #loop over all files
 for file_location in files:
     #find the name of the file to be used for the reformated file
-    file_name = file_location.replace('C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_New\\', '').replace('.Spe', '')
+    file_name = file_location.replace('C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_New/', '').replace('.Spe', '').replace('\\', '')
 
     #prepare the panda data frame that data is to be entered into
     data_frame = pd.DataFrame(columns=['BinNumber', 'Counts'])
@@ -57,4 +58,4 @@ for file_location in files:
         line_number += 1 #iterate the line number counter
 
     #save the data to a hfd5 file
-    h5store(file_name+'.h5', data_frame, **metadata)
+    h5store('Experimental/'+file_name+'.h5', data_frame, **metadata)

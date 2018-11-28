@@ -106,11 +106,11 @@ def peak_size_finder(peak, data, fit_width):
 
 
 
-# data, metadata = h5load("../Data/Experimental/Brazil_nuts.h5")
-# print(metadata)
-# #perform an energy calibration to the brazil nut spectrum
-# data = Calibrate(data, metadata)
-# unbinned_brazil = unbin(data)
+data, metadata = h5load("../Data/Experimental/Brazil_nuts.h5")
+print(metadata)
+#perform an energy calibration to the brazil nut spectrum
+data = Calibrate(data, metadata)
+unbinned_brazil = unbin(data)
 
 fit_width = 8
 Brazil_peaks = [74.97, 238.63, 295.22, 351.93, 511, 583.19, 609.31, 1460.82]
@@ -128,9 +128,9 @@ with open('Brazil_Intensity.txt', 'rb') as fp:
     counts_in_peak_Brazil = pickle.load(fp)
 
 # #get values of counts in each peak for background
-# data_file = open("Background_data.txt", 'rb')
-# print('Loading Background Data from file')
-# Background_data = pickle.load(data_file)
+data_file = open("Background_data.txt", 'rb')
+print('Loading Background Data from file')
+Background_data = pickle.load(data_file)
 # fit_width = 8
 # Brazil_peaks = [74.97, 238.63, 295.22, 351.93, 511, 583.19, 609.31, 1460.82]
 #
@@ -224,10 +224,44 @@ print("Mass abundance of Ra-228: {}%".format(100*Ra228_mass/mass_of_nuts))
 Ra226_activity = (activities[295.22]/u.ufloat(0.18414,0.00036) + activities[351.93]/u.ufloat(0.3560,0.0017) + activities[609.31]/u.ufloat(0.4549,0.0019))/3
 print(Ra226_activity)
 #activity of one mole of Ra-226
-Ra226_Ac_mole = c.N_A * (np.log(2) / (u.ufloat(1600,7)*7365*24*60*60))
+Ra226_Ac_mole = c.N_A * (np.log(2) / (u.ufloat(1600,7)*365*24*60*60))
 #number of moles of Radium = activity / activity of one mole
 Ra226_mole = Ra226_activity / Ra226_Ac_mole
 Ra226_RFM = u.ufloat(226.025, 0.0005)
 Ra226_mass = Ra226_RFM * Ra226_mole
-print("Mass of Ra226diumium: {}g".format(Ra226_mass))
+print("Mass of Ra-226: {}g".format(Ra226_mass))
 print("Mass abundance: {}%".format(100*Ra226_mass/mass_of_nuts))
+
+K40_activity = activities[1460.82]/u.ufloat(0.1066,0.0017)
+print(K40_activity)
+#activity of one mole of Ra-226
+K40_Ac_mole = c.N_A * (np.log(2) / (u.ufloat(1.248,0.003)*(10**9)*365*24*60*60))
+#number of moles of Radium = activity / activity of one mole
+K40_mole = K40_activity / K40_Ac_mole
+K40_RFM = u.ufloat(39.964, 0.0005)
+K40_mass = K40_RFM * K40_mole
+print("Mass of K-40: {}g".format(K40_mass))
+print("Mass abundance: {}%".format(100*K40_mass/mass_of_nuts))
+
+
+
+#plot Brazil nut and background spectra
+binned_brazil, edges = np.histogram(unbinned_brazil, 1000)
+binned_brazil = binned_brazil / brazil_time.n
+centers = [(edges[i]+edges[i+1])/2 for i in range(len(binned_brazil))]
+w = (centers[1]-centers[0])
+binned_brazil = binned_brazil / w
+plt.bar(centers, binned_brazil, width = w, align='center', alpha=0.5, label='Brazil Nuts')
+
+binned_background, edges2 = np.histogram(Background_data, 1000)
+binned_background = binned_background / background_time.n
+centers2 = [(edges2[i]+edges2[i+1])/2 for i in range(len(binned_background))]
+w2 = (centers2[1]-centers2[0])
+binned_background = binned_background / w2
+plt.bar(centers2, binned_background, width = w2, align='center', alpha=0.5, label='Background')
+
+plt.legend()
+plt.ylabel('Count Rate Density [Counts/second/KeV]')
+plt.xlabel('Energy [KeV]')
+plt.savefig('BrazilNutSpectrum.pdf')
+plt.show()

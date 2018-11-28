@@ -9,6 +9,7 @@ import sys
 sys.path += ["C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_Miniproject"]
 from project_library import *
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from scipy.optimize import curve_fit
 import uncertainties as u
 
@@ -18,7 +19,7 @@ def peak_fit(data, peak, fit_width):
     counts = np.log(fit_bins['Counts'].astype(int)+1) #take log so that peaks are more prominent, +1 to prevent error with 0 entries
     bins = fit_bins['BinNumber'].astype(int)
     popt, pcov = curve_fit(peak_function, bins, counts, p0=[peak, 1, 6, 1], bounds=([peak-20, 0.01, 1, 0.5], [peak+20, 3, 15, 10]))
-    return popt, np.diag(pcov)
+    return popt, np.sqrt(np.diag(pcov))
 
 #function used as the fitted calibration
 #in this order so that bin peak can be on the y-axis during fit
@@ -46,12 +47,26 @@ def Calibration_Fitter(filename):
     #plt.show()
 
     lin_fit, pcov = curve_fit(calibration_fit_function, known_energies, peak_bins, sigma=peak_bin_uncertainties)
-    #plt.plot(peak_bins, known_energies, 'x')
-    #plt.plot([0, 1500], [b, 1500*a+b])
-    #plt.xlabel('bin number')
-    #plt.ylabel('energy')
-    plt.show()
-    return u.ufloat(lin_fit[0], np.diag(pcov)[0]), u.ufloat(lin_fit[1], np.diag(pcov)[1]), metadata['TimeStamp']
+
+    f, axes = plt.subplots(2,1, sharex=True, gridspec_kw = {'height_ratios':[4, 1], 'hspace': 0.03})
+
+    axes[0].plot([0, 1500], [lin_fit[1], 1500*lin_fit[0]+lin_fit[1]], '--r',)
+    axes[0].errorbar(peak_bins, known_energies, peak_bin_uncertainties, color = 'black', linestyle='none', marker = 'x')
+    axes[0].set_ylabel('Energy [KeV]')
+    axes[0].set_xlim(0, 1500)
+    axes[0].set_ylim(0, 1500)
+    
+    difference = lin_fit[0]*np.array(peak_bins)+lin_fit[1] - np.array(known_energies)
+    axes[1].plot(peak_bins, difference, 'x', color='gray')
+    axes[1].plot([0,1500], [0,0], color='black', linewidth=0.5)
+    axes[1].set_xlim(0, 1500)
+    
+    axes[1].set_xlabel('Bin Number')
+    axes[1].set_ylabel('Residual')
+    
+    plt.savefig('Calibration_line'+str(metadata['RealTime'])+'.pdf')
+    plt.close()
+    return u.ufloat(lin_fit[0], np.sqrt(np.diag(pcov))[0]), u.ufloat(lin_fit[1], np.sqrt(np.diag(pcov))[1]), metadata['TimeStamp']
 
 a_list = []
 b_list = []
