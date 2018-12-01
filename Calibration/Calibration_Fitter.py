@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy.optimize import curve_fit
 import uncertainties as u
+from statsmodels.stats.weightstats import DescrStatsW
 
 #fit a peak to a region of data with width fit_width around the peak bin
 def peak_fit(data, peak, fit_width):
@@ -55,61 +56,100 @@ def Calibration_Fitter(filename):
     axes[0].set_ylabel('Energy [KeV]')
     axes[0].set_xlim(0, 1500)
     axes[0].set_ylim(0, 1500)
-    
+
     difference = lin_fit[0]*np.array(peak_bins)+lin_fit[1] - np.array(known_energies)
     axes[1].plot(peak_bins, difference, 'x', color='gray')
     axes[1].plot([0,1500], [0,0], color='black', linewidth=0.5)
     axes[1].set_xlim(0, 1500)
-    
+
     axes[1].set_xlabel('Bin Number')
     axes[1].set_ylabel('Residual')
-    
+
     plt.savefig('Calibration_line'+str(metadata['RealTime'])+'.pdf')
     plt.close()
     return u.ufloat(lin_fit[0], np.sqrt(np.diag(pcov))[0]), u.ufloat(lin_fit[1], np.sqrt(np.diag(pcov))[1]), metadata['TimeStamp']
 
+#store a & b coeeficients without splitting by day
 a_list = []
 b_list = []
 time_list = []
 
-for file in glob.iglob('C:/Users/Thomas/Google Drive/Oxford/2018_19/NP03/NP03_Miniproject/Data/Experimental/*Eu_calibration.h5'):
+#lists to store a & b coefficients and time for each day
+a_list_06 = []
+b_list_06 = []
+time_list_06 = []
+a_list_12 = []
+b_list_12 = []
+time_list_12 = []
+a_list_13 = []
+b_list_13 = []
+time_list_13 = []
+
+for file in glob.iglob('../Data/Experimental/*Eu_calibration.h5'):
     print("Calibrating form file: {}".format(file))
     a, b, time = Calibration_Fitter(file)
-    data, metadata = h5load(file)
     a_list.append(a)
     b_list.append(b)
-    time = time[6:10]+time[0:2]+time[3:5]+time[11:13]+time[14:16]+time[17:-1]
+    date = time[3:5]
+    data, metadata = h5load(file)
+    time = time[6:10]+time[0:2]+time[3:5]+time[11:13]+time[14:16]+time[17:]
     time = int(time)
-    time -= 2018110611145 #remove offset from not being in year 0
     time_list.append(time)
+    #remove time offset so the first calibration from each day occurs at t = 0
+    if date == '06':
+        time -= 20181106111459
+        a_list_06.append(a)
+        b_list_06.append(b)
+        time_list_06.append(time)
+    elif date == '12':
+        time -= 20181112105111
+        a_list_12.append(a)
+        b_list_12.append(b)
+        time_list_12.append(time)
+    elif date == '13':
+        time -=  20181113100918
+        a_list_13.append(a)
+        b_list_13.append(b)
+        time_list_13.append(time)
 
 #save calibrations to a file
 out_file = open("Calibrations.csv", "w")
 out_file.write("Time Stamp, a, b\n")
 for i in range(len(a_list)):
-    out_file.write(str(time_list[i]+2018110611145)+', '+str(a_list[i])+', '+str(b_list[i])+'\n')
+    out_file.write(str(time_list[i])+', '+str(a_list[i])+', '+str(b_list[i])+'\n')
 out_file.close()
 
-mean_a = u.ufloat(np.mean([i.n for i in a_list]), np.std([i.n for i in a_list]))
-mean_b = u.ufloat(np.mean([i.n for i in b_list]), np.std([i.n for i in b_list]))
+#perform a weighted average to make each day's measurements have equal weight
+weighted_a = DescrStatsW(np.array([i.n for i in a_list]), weights = np.array([2, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2]))
+weighted_b = DescrStatsW(np.array([i.n for i in b_list]), weights = np.array([2, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2]))
+
+mean_a = u.ufloat(weighted_a.mean, weighted_a.std)
+mean_b = u.ufloat(weighted_b.mean, weighted_b.std)
+#mean_b = u.ufloat(np.mean([i.n for i in b_list]), np.std([i.n for i in b_list]))
 print(mean_a)
 print(mean_b)
 
 #plot the gradient of the fit against time
-plt.errorbar(time_list, [i.n for i in a_list], [i.s for i in a_list], fmt='x', color='black', linestyle='')
-plt.plot([0,700000],[mean_a.n, mean_a.n], 'r')
-plt.plot([0,700000],[mean_a.n+mean_a.s, mean_a.n+mean_a.s], linestyle='--', color='red', alpha=0.5)
-plt.plot([0,700000],[mean_a.n-mean_a.s, mean_a.n-mean_a.s], linestyle='--', color='red', alpha=0.5)
-plt.xlabel("Time (s)")
-plt.ylabel("Gradient of Calibration (KeV/bin)")
+plt.errorbar(time_list_06, [i.n for i in a_list_06], [i.s for i in a_list_06], fmt='x', color='C0', linestyle='', label='20181106')
+plt.errorbar(time_list_12, [i.n for i in a_list_12], [i.s for i in a_list_12], fmt='x', color='C1', linestyle='', label='20181112')
+plt.errorbar(time_list_13, [i.n for i in a_list_13], [i.s for i in a_list_13], fmt='x', color='C2', linestyle='', label='20181113')
+plt.plot([0,60000],[mean_a.n, mean_a.n], 'r')
+plt.plot([0,60000],[mean_a.n+mean_a.s, mean_a.n+mean_a.s], linestyle='--', color='red', alpha=0.5)
+plt.plot([0,60000],[mean_a.n-mean_a.s, mean_a.n-mean_a.s], linestyle='--', color='red', alpha=0.5)
+plt.xlabel("Time from first calibration [s]")
+plt.ylabel("Gradient of Calibration [KeV/bin]")
+plt.legend()
 plt.savefig('a_fit.pdf')
 plt.close()
 
 #plot the gradient of the intercept of the fit against time
-plt.errorbar(time_list, [i.n for i in b_list], [i.s for i in b_list], fmt='x', color='black', linestyle='')
-plt.plot([0,700000],[mean_b.n, mean_b.n], 'r')
-plt.plot([0,700000],[mean_b.n+mean_b.s, mean_b.n+mean_b.s], linestyle='--', color='red', alpha=0.5)
-plt.plot([0,700000],[mean_b.n-mean_b.s, mean_b.n-mean_b.s], linestyle='--', color='red', alpha=0.5)
-plt.xlabel("Time (s)")
-plt.ylabel("Intercept of Calibration (KeV)")
+plt.errorbar(time_list_06, [i.n for i in b_list_06], [i.s for i in b_list_06], fmt='x', color='C0', linestyle='', label='20181106')
+plt.errorbar(time_list_12, [i.n for i in b_list_12], [i.s for i in b_list_12], fmt='x', color='C1', linestyle='', label='20181112')
+plt.errorbar(time_list_13, [i.n for i in b_list_13], [i.s for i in b_list_13], fmt='x', color='C2', linestyle='', label='20181113')
+plt.plot([0,60000],[mean_b.n, mean_b.n], 'r')
+plt.plot([0,60000],[mean_b.n+mean_b.s, mean_b.n+mean_b.s], linestyle='--', color='red', alpha=0.5)
+plt.plot([0,60000],[mean_b.n-mean_b.s, mean_b.n-mean_b.s], linestyle='--', color='red', alpha=0.5)
+plt.xlabel("Time from first calibration [s]")
+plt.ylabel("Intercept of Calibration [KeV]")
+plt.legend()
 plt.savefig('b_fit.pdf')

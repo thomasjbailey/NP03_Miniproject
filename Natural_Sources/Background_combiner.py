@@ -52,17 +52,26 @@ def Calibrate(df, metadata):
     return df
 
 calibrated_data = []
+hists = []
 #loop to open, calibrate each file and then add to unbinned combined set
-for file in glob.iglob("../Data/Experimental/Background*.h5"):
+for file in glob.iglob("../Data/Experimental/*Background*.h5"):
     data, metadata = h5load(file)
-    print(metadata)
+    #print(metadata)
+    print(u.ufloat(data['Counts'].sum(), np.sqrt(data['Counts'].sum())) / metadata['RealTime'])
     data = Calibrate(data, metadata)
-    calibrated_data += unbin(data)
+    calibrated_data.append(unbin(data))
+    binned_background, edges2 = np.histogram(unbin(data), 200)
+    binned_background = binned_background / metadata['RealTime']
+    hists.append(binned_background)
+
 
 #data['Energy'] = data['BinNumber'].apply(Calibrate, args=tuple(metadata['Calibration']))
-plt.hist(calibrated_data, 1000, log=True)
+plt.plot([i for i in range(200)], hists[0], alpha = 0.5)
+plt.plot([i for i in range(200)], hists[1], alpha = 0.5)
+plt.plot([i for i in range(200)], hists[2], alpha = 0.5)
+plt.yscale('log')
 plt.show()
 
 #save combined unbinned background data
-with open('Background_data.txt', 'wb') as fp:
-    pickle.dump(calibrated_data, fp)
+#with open('Background_data.txt', 'wb') as fp:
+#    pickle.dump(calibrated_data, fp)

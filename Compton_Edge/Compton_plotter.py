@@ -38,6 +38,13 @@ sim_data['Total_counts'] = sim_data['Total_counts']*(exp_peak/sim_peak)
 
 plt.hist(unbin(data), bins=200, range=(0, 700), alpha=0.5, label='Experimental')
 plt.hist(unbin_sim(sim_data), bins=200, range=(0, 700), alpha=0.5, label='Simulated')
+ax = plt.gca()
+ax.annotate('Reverse Compton Edge', xy=(187, 3600), xytext=(190, 7000),
+            arrowprops=dict(arrowstyle="->"),
+            )
+ax.annotate('Compton Edge', xy=(467, 2400), xytext=(450, 5000),
+            arrowprops=dict(arrowstyle="->"))
+
 plt.ylabel("Counts")
 plt.xlabel("Energy [KeV]")
 plt.legend()

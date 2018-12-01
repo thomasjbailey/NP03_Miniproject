@@ -246,22 +246,30 @@ print("Mass abundance: {}%".format(100*K40_mass/mass_of_nuts))
 
 
 #plot Brazil nut and background spectra
-binned_brazil, edges = np.histogram(unbinned_brazil, 1000)
+binned_brazil, edges = np.histogram(unbinned_brazil, 200)
+brazil_uncertainty = np.sqrt(binned_brazil)
 binned_brazil = binned_brazil / brazil_time.n
+brazil_uncertainty = brazil_uncertainty / brazil_time.n
 centers = [(edges[i]+edges[i+1])/2 for i in range(len(binned_brazil))]
 w = (centers[1]-centers[0])
 binned_brazil = binned_brazil / w
-plt.bar(centers, binned_brazil, width = w, align='center', alpha=0.5, label='Brazil Nuts')
+brazil_uncertainty = brazil_uncertainty / w
+plt.bar(centers, binned_brazil, width = w, alpha =0.5, align='center', label='Brazil Nuts', color = 'C0', yerr=brazil_uncertainty, error_kw={'elinewidth':1, 'errorevery': 10, 'ecolor': 'C0', 'capsize': 2})
 
-binned_background, edges2 = np.histogram(Background_data, 1000)
+binned_background, edges2 = np.histogram(Background_data, 200)
+background_uncertainty = np.sqrt(binned_background)
 binned_background = binned_background / background_time.n
+background_uncertainty = background_uncertainty / background_time.n
 centers2 = [(edges2[i]+edges2[i+1])/2 for i in range(len(binned_background))]
 w2 = (centers2[1]-centers2[0])
 binned_background = binned_background / w2
-plt.bar(centers2, binned_background, width = w2, align='center', alpha=0.5, label='Background')
+background_uncertainty = background_uncertainty / w2
+plt.bar(centers2, binned_background, width = w2, alpha =0.5, align='center', label='Background', yerr=background_uncertainty, color='C1', error_kw={'elinewidth':1, 'errorevery': 10, 'ecolor': 'C1', 'capsize': 2})
 
 plt.legend()
 plt.ylabel('Count Rate Density [Counts/second/KeV]')
 plt.xlabel('Energy [KeV]')
+plt.yscale('log')
+plt.ylim(0.00001, 0.008)
 plt.savefig('BrazilNutSpectrum.pdf')
 plt.show()
