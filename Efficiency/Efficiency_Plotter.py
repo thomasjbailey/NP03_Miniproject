@@ -144,6 +144,7 @@ gamma_decay_mode = u.ufloat(10.72, 0.11) * 0.01 #fraction of decays with a gamma
 
 moles_K40 = (Mass/Molar_Mass)*K40_abundance
 number_K40 = c.N_A * moles_K40
+print(number_K40)
 decay_constant = np.log(2)/half_life
 activity = decay_constant * number_K40
 gamma_activity = activity * gamma_decay_mode

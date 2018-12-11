@@ -10,6 +10,7 @@ from project_library import *
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import uncertainties as u
+import uncertainties.umath as umath
 import pickle
 import iminuit, probfit
 import scipy.stats
@@ -40,7 +41,7 @@ def Calibrate(df, metadata):
     peak_bins = []
     peak_bin_uncertainties = []
 
-    # plt.plot(df['BinNumber'], np.log(df['Counts'].astype(int)+1), 'x')
+    #plt.plot(df['BinNumber'], np.log(df['Counts'].astype(int)+1), 'x')
 
     known_energies = [74.97, 238.63, 295.22, 351.93, 511, 583.19, 609.31, 1460.82]
     #perform a fit for each peak to find the central value
@@ -49,8 +50,8 @@ def Calibrate(df, metadata):
         fit_values, fit_errors = peak_fit(df, (peak-metadata['Calibration'][1])/metadata['Calibration'][0], 30)
         peak_bins.append(fit_values[0])
         peak_bin_uncertainties.append(np.sqrt(fit_errors[0]))
-    #     plt.plot(np.linspace(peak-25, peak+25), peak_function(np.linspace(peak-25, peak+25), *fit_values))
-    # plt.show()
+        #plt.plot(np.linspace(peak-25, peak+25), peak_function(np.linspace(peak-25, peak+25), *fit_values))
+    #plt.show()
 
     lin_fit, pcov = curve_fit(calibration_fit_function, known_energies, peak_bins, sigma=peak_bin_uncertainties)
     df['Energy'] = df['BinNumber'].apply(calibrate_array, args=tuple(lin_fit))
@@ -99,8 +100,9 @@ def peak_size_finder(peak, data, fit_width):
     plt.ylabel('Counts')
     plt.xlabel('Energy [KeV]')
     plt.savefig('Intensity_plots/'+str(peak)+'.pdf')
-    plt.close()
-    counts_in_peak = u.ufloat(params[2]*number_counts,errs[2]*number_counts)
+    plt.show()
+    #plt.close()
+    counts_in_peak = u.ufloat(params[2]*number_counts, errs[2]*number_counts)
     print(counts_in_peak)
     return counts_in_peak
 
@@ -112,9 +114,9 @@ print(metadata)
 data = Calibrate(data, metadata)
 unbinned_brazil = unbin(data)
 
-fit_width = 8
+# fit_width = 8
 Brazil_peaks = [74.97, 238.63, 295.22, 351.93, 511, 583.19, 609.31, 1460.82]
-
+#
 # print('Finding Peak Sizes')
 # counts_in_peak_Brazil = Parallel(n_jobs=-1)(delayed(peak_size_finder)(peak, unbinned_brazil, fit_width) for peak in Brazil_peaks)
 # print(counts_in_peak_Brazil)
@@ -131,9 +133,9 @@ with open('Brazil_Intensity.txt', 'rb') as fp:
 data_file = open("Background_data.txt", 'rb')
 print('Loading Background Data from file')
 Background_data = pickle.load(data_file)
+
 # fit_width = 8
 # Brazil_peaks = [74.97, 238.63, 295.22, 351.93, 511, 583.19, 609.31, 1460.82]
-#
 # print('Finding Peak Sizes')
 # counts_in_peak_Background = Parallel(n_jobs=-1)(delayed(peak_size_finder)(peak, Background_data, fit_width) for peak in Brazil_peaks)
 # print(counts_in_peak_Background)
@@ -169,6 +171,9 @@ for i in range(len(Brazil_peaks)):
     Background_signal = Background_signal/background_time
 
     corrected_count = (Brazil_signal-Background_signal)
+    print(Brazil_signal)
+    print(Background_signal)
+    print(corrected_count)
     sigma = corrected_count.n/corrected_count.s
     print("Sigma at {} KeV: {}".format(Brazil_peaks[i], sigma))
     #calculate p-value assuming the uncertainties follow a normal distribution
@@ -178,7 +183,7 @@ for i in range(len(Brazil_peaks)):
     activity = corrected_count / Efficiency(Brazil_peaks[i], coeffs)
     activities[Brazil_peaks[i]] = activity
 
-
+print(activities)
 #use Fisher's method to combine p-values for each decay chain
 
 #Thorium Decays
@@ -205,24 +210,46 @@ print(Th_activity)
 Th_Ac_mole = c.N_A * (np.log(2) / (u.ufloat(1.40,0.01)*(10**10)*365*24*60*60))
 #activity of one mole of Ra-228
 Ra228_Ac_mole = c.N_A * (np.log(2) / (u.ufloat(5.75,0.03)*365*24*60*60))
+
+#decay constants for Ra-228 and Th-228 the only two long lived isotopes in the decay chain
+Ra228_lambda = (np.log(2) / (u.ufloat(5.75,0.03)*365*24*60*60))
+Th228_lambda = (np.log(2) / (u.ufloat(1.9125,0.0009)*365*24*60*60))
+
+#estimate for the age of the brazil nut from expiery date on the package
+Nut_Age = u.ufloat(5,1)*365*24*60*60
+
+#activity of nut if there was one mole of Ra-228 initially
+Nut_Ac_mole = c.N_A * (Ra228_lambda * Th228_lambda / (Th228_lambda - Ra228_lambda)) * (umath.exp(-Ra228_lambda*Nut_Age)-umath.exp(-Th228_lambda*Nut_Age))
+
 #in 'steady' state all radio nucleides will have the same activity
 #the number of moles of Ra-228 for every mole of Th-232 in steady state
-mole_ratio = Th_Ac_mole / Ra228_Ac_mole
-print(mole_ratio)
+#mole_ratio = Th_Ac_mole / Ra228_Ac_mole
+#print(mole_ratio)
+
 #number of moles of Thorium = activity / activity of one mole
 Th_mole = Th_activity / Th_Ac_mole
 Th_RFM = u.ufloat(232.0380495, 0.0000022)
 Th_mass = Th_RFM * Th_mole
-Ra228_mole = mole_ratio * Th_mole
+#Ra228_mole = mole_ratio * Th_mole
+#initial amount of radium in the nut
+Ra228_mole = Th_activity / Nut_Ac_mole
 Ra228_RFM = u.ufloat(228.031, 0.0005)
 Ra228_mass = Ra228_mole * Ra228_RFM
 print("Mass of Thorium: {}g".format(Th_mass))
 print("Mass abundance: {}%".format(100*Th_mass/mass_of_nuts))
 print("Mass of Ra-228: {}g".format(Ra228_mass))
 print("Mass abundance of Ra-228: {}%".format(100*Ra228_mass/mass_of_nuts))
+print("Specific Activity of Ra-228 chain: {}Bq/g".format(Th_activity/mass_of_nuts))
+print("Specific Activity of Ra-228 chain: {}Ci/g".format((Th_activity/mass_of_nuts)/(3.7*(10**10))))
 
 Ra226_activity = (activities[295.22]/u.ufloat(0.18414,0.00036) + activities[351.93]/u.ufloat(0.3560,0.0017) + activities[609.31]/u.ufloat(0.4549,0.0019))/3
+print(activities[295.22]/u.ufloat(0.18414,0.00036))
+print(activities[351.93]/u.ufloat(0.3560,0.0017))
+print(activities[609.31]/u.ufloat(0.4549,0.0019))
 print(Ra226_activity)
+print("Specific Activity of Ra-226: {}Bq/g".format(Ra226_activity/mass_of_nuts))
+print("Specific Activity of Ra-226: {}Ci/g".format((Ra226_activity/mass_of_nuts)/(3.7*(10**10))))
+
 #activity of one mole of Ra-226
 Ra226_Ac_mole = c.N_A * (np.log(2) / (u.ufloat(1600,7)*365*24*60*60))
 #number of moles of Radium = activity / activity of one mole
@@ -234,14 +261,19 @@ print("Mass abundance: {}%".format(100*Ra226_mass/mass_of_nuts))
 
 K40_activity = activities[1460.82]/u.ufloat(0.1066,0.0017)
 print(K40_activity)
-#activity of one mole of Ra-226
+#activity of one mole of K-40
 K40_Ac_mole = c.N_A * (np.log(2) / (u.ufloat(1.248,0.003)*(10**9)*365*24*60*60))
-#number of moles of Radium = activity / activity of one mole
+#number of moles of K-40 = activity / activity of one mole
 K40_mole = K40_activity / K40_Ac_mole
 K40_RFM = u.ufloat(39.964, 0.0005)
 K40_mass = K40_RFM * K40_mole
 print("Mass of K-40: {}g".format(K40_mass))
 print("Mass abundance: {}%".format(100*K40_mass/mass_of_nuts))
+print("Specific Activity of K-40: {}Bq/g".format(K40_activity/mass_of_nuts))
+print("Specific Activity of K-40: {}Ci/g".format((K40_activity/mass_of_nuts)/(3.7*(10**10))))
+K40_abundance = u.ufloat(0.000117, 0.000001)
+K_mass = (K40_mass / K40_abundance) / mass_of_nuts
+print("Mass of K in 100g: {}mg".format(K_mass*100*1000))
 
 
 
@@ -267,9 +299,9 @@ background_uncertainty = background_uncertainty / w2
 plt.bar(centers2, binned_background, width = w2, alpha =0.5, align='center', label='Background', yerr=background_uncertainty, color='C1', error_kw={'elinewidth':1, 'errorevery': 10, 'ecolor': 'C1', 'capsize': 2})
 
 plt.legend()
-plt.ylabel('Count Rate Density [Counts/second/KeV]')
+plt.ylabel(r'Count Rate Density [Counts $\mathrm{s}^{-1} \mathrm{ KeV}^{-1}$]')
 plt.xlabel('Energy [KeV]')
-plt.yscale('log')
-plt.ylim(0.00001, 0.008)
+#plt.yscale('log')
+#plt.ylim(0.00001, 0.008)
 plt.savefig('BrazilNutSpectrum.pdf')
 plt.show()

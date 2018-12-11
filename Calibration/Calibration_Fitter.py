@@ -37,7 +37,7 @@ def Calibration_Fitter(filename):
 
     #plt.plot(df['BinNumber'], np.log(df['Counts'].astype(int)+1), 'x')
 
-    known_energies = [112.78, 244.7, 344.28, 411.12, 443.96, 778.9, 867.37, 964.08, 1085.9, 1112.1, 1299.1, 1408]
+    known_energies = [121.78, 244.7, 344.28, 411.12, 443.96, 778.9, 867.37, 964.08, 1085.9, 1112.1, 1299.1, 1408]
 
     #perform a fit for each peak to find the central value
     for peak in known_energies:
@@ -131,25 +131,27 @@ print(mean_b)
 
 #plot the gradient of the fit against time
 plt.errorbar(time_list_06, [i.n for i in a_list_06], [i.s for i in a_list_06], fmt='x', color='C0', linestyle='', label='20181106')
-plt.errorbar(time_list_12, [i.n for i in a_list_12], [i.s for i in a_list_12], fmt='x', color='C1', linestyle='', label='20181112')
-plt.errorbar(time_list_13, [i.n for i in a_list_13], [i.s for i in a_list_13], fmt='x', color='C2', linestyle='', label='20181113')
-plt.plot([0,60000],[mean_a.n, mean_a.n], 'r')
-plt.plot([0,60000],[mean_a.n+mean_a.s, mean_a.n+mean_a.s], linestyle='--', color='red', alpha=0.5)
-plt.plot([0,60000],[mean_a.n-mean_a.s, mean_a.n-mean_a.s], linestyle='--', color='red', alpha=0.5)
+plt.errorbar(time_list_12, [i.n for i in a_list_12], [i.s for i in a_list_12], fmt='+', color='C1', linestyle='', label='20181112')
+plt.errorbar(time_list_13, [i.n for i in a_list_13], [i.s for i in a_list_13], fmt='o', color='C2', linestyle='', label='20181113')
+plt.plot([-1000,60000],[mean_a.n, mean_a.n], 'r')
+plt.plot([-1000,60000],[mean_a.n+mean_a.s, mean_a.n+mean_a.s], linestyle='--', color='red', alpha=0.5)
+plt.plot([-1000,60000],[mean_a.n-mean_a.s, mean_a.n-mean_a.s], linestyle='--', color='red', alpha=0.5)
 plt.xlabel("Time from first calibration [s]")
 plt.ylabel("Gradient of Calibration [KeV/bin]")
+plt.xlim(-1000, 60000)
 plt.legend()
 plt.savefig('a_fit.pdf')
 plt.close()
 
 #plot the gradient of the intercept of the fit against time
 plt.errorbar(time_list_06, [i.n for i in b_list_06], [i.s for i in b_list_06], fmt='x', color='C0', linestyle='', label='20181106')
-plt.errorbar(time_list_12, [i.n for i in b_list_12], [i.s for i in b_list_12], fmt='x', color='C1', linestyle='', label='20181112')
-plt.errorbar(time_list_13, [i.n for i in b_list_13], [i.s for i in b_list_13], fmt='x', color='C2', linestyle='', label='20181113')
-plt.plot([0,60000],[mean_b.n, mean_b.n], 'r')
-plt.plot([0,60000],[mean_b.n+mean_b.s, mean_b.n+mean_b.s], linestyle='--', color='red', alpha=0.5)
-plt.plot([0,60000],[mean_b.n-mean_b.s, mean_b.n-mean_b.s], linestyle='--', color='red', alpha=0.5)
+plt.errorbar(time_list_12, [i.n for i in b_list_12], [i.s for i in b_list_12], fmt='+', color='C1', linestyle='', label='20181112')
+plt.errorbar(time_list_13, [i.n for i in b_list_13], [i.s for i in b_list_13], fmt='o', color='C2', linestyle='', label='20181113')
+plt.plot([-1000,60000],[mean_b.n, mean_b.n], 'r')
+plt.plot([-1000,60000],[mean_b.n+mean_b.s, mean_b.n+mean_b.s], linestyle='--', color='red', alpha=0.5)
+plt.plot([-1000,60000],[mean_b.n-mean_b.s, mean_b.n-mean_b.s], linestyle='--', color='red', alpha=0.5)
 plt.xlabel("Time from first calibration [s]")
 plt.ylabel("Intercept of Calibration [KeV]")
 plt.legend()
+plt.xlim(-1000, 60000)
 plt.savefig('b_fit.pdf')

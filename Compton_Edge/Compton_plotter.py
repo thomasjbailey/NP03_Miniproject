@@ -19,7 +19,7 @@ data, metadata = h5load("../Data/Experimental/137-Cs.h5")
 
 data['Energy'] = data['BinNumber'].apply(Calibrate, args=tuple(metadata['Calibration']))
 
-sim_data = read_simulated_data("../Data/Simulated/Compton_10mm.txt")
+sim_data = read_simulated_data("../Data/Simulated/Compton_7mm.txt")
 #convert from MeV to KeV
 sim_data['Energy'] = sim_data['Energy']*1000
 #remove peak from photons not detected

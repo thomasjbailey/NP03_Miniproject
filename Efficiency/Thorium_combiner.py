@@ -47,6 +47,25 @@ def Calibrate(df):
     #plt.show()
 
     lin_fit, pcov = curve_fit(calibration_fit_function, known_energies, peak_bins, sigma=peak_bin_uncertainties)
+
+    f, axes = plt.subplots(2,1, sharex=True, gridspec_kw = {'height_ratios':[4, 1], 'hspace': 0.03})
+
+    axes[0].plot([0, 1500], [lin_fit[1], 1500*lin_fit[0]+lin_fit[1]], '--r',)
+    axes[0].errorbar(peak_bins, known_energies, peak_bin_uncertainties, color = 'black', linestyle='none', marker = 'x')
+    axes[0].set_ylabel('Energy [KeV]')
+    axes[0].set_xlim(0, 1500)
+    axes[0].set_ylim(0, 1500)
+
+    difference = lin_fit[0]*np.array(peak_bins)+lin_fit[1] - np.array(known_energies)
+    axes[1].plot(peak_bins, difference, 'x', color='gray')
+    axes[1].plot([0,1500], [0,0], color='black', linewidth=0.5)
+    axes[1].set_xlim(0, 1500)
+
+    axes[1].set_xlabel('Bin Number')
+    axes[1].set_ylabel('Residual')
+
+    plt.show()
+
     df['Energy'] = df['BinNumber'].apply(calibrate_array, args=tuple(lin_fit))
     return df
 
