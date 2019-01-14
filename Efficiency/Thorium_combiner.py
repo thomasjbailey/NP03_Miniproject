@@ -73,6 +73,7 @@ calibrated_data = []
 #loop to open, calibrate each file and then add to unbinned combined set
 for file in glob.iglob("../Data/Experimental/232-Th*.h5"):
     data, metadata = h5load(file)
+    print(metadata['RealTime'])
     data = Calibrate(data)
     calibrated_data += unbin(data)
 
